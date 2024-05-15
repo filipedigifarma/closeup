@@ -1,0 +1,22 @@
+select (select cnpj from config)AS CNPJ,p.cod_barras,
+v.RECEITUARIO_UF AS UF,V.CONSELHO_NUMERO AS NR_CRM,V.CONSELHO_TIPO AS TP_CRM,I.VENDA_NOTA_ID AS
+CUPOM,I.ITEMVEND_QUANT AS QTDE,P.PRODUTO AS PROD, f.fornecedor as lab,i.vendedor_id as atend
+from vendas_psicotropicos v
+left join item_vendas i
+on(v.venda_nota_id=i.venda_nota_id and v.item_venda_id=i.item_venda_id)
+left join produtos p on(i.produto_id=p.produto_id)
+left join cab_vendas c on (i.venda_nota_id=c.venda_nota_id)
+left join fornecedores f on (p.fornecedor_id=f.fornecedor_id)
+where c.venda_data_hora between '2015-05-01 00:00:00' and '2015-05-07 23:59:59'
+union all
+select (select cnpj from config)AS CNPJ,p.cod_barras,
+a.uf_crm as UF,A.CRM AS NR_CRM,'CRM' AS TP_CRM,c.venda_nota_id as CUPOM,i.itemvend_quant QTDE,P.PRODUTO AS PROD,
+f.fornecedor,a.vendedor_id from
+autorizacoes a
+left join item_autorizacoes it on (a.requisicao_id=it.requisicao_id)
+left join produtos p on (it.produto_id=p.produto_id)
+left join cab_vendas c on (c.nsu=a.nsu)
+left join item_vendas i on (c.venda_nota_id=i.venda_nota_id)
+left join fornecedores f on (p.fornecedor_id=f.fornecedor_id)
+where a.status='3'
+and c.venda_data_hora between '2015-05-01 00:00:00' and '2015-05-07 23:59:59'
