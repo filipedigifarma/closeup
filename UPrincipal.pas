@@ -138,6 +138,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+    procedure envia_arquivos_closeup_temp;
     procedure deletearquivoscloseup;
     procedure envia_arquivo_Closeup;
     procedure envia_arquivo_Closeup_Rede;
@@ -328,7 +329,7 @@ var
 begin
 // s_ArqCli:= gerarArqCli;
 // s_ArqProd:= gerarArqProd;
- s_ArqVenda:= gerarArqVenda;
+  s_ArqVenda:= gerarArqVenda;
 // Nome_Zip:=oConfigProgram.s_COD_REDE+'M'+FormatDateTime('mm', frmprincipal.jvDateInc.Date)+'.D'+FormatDateTime('dd', frmprincipal.jvDateInc.Date)+'.Zip';
 // Zipa o Arquivo
 //  Zip := TZipFile.Create;
@@ -341,7 +342,7 @@ begin
 //  DeleteFile(IncludeTrailingBackslash(oConfigProgram.Diretorio) +s_ArqCli);
 //  DeleteFile(IncludeTrailingBackslash(oConfigProgram.Diretorio) +s_ArqProd);
 //  DeleteFile(IncludeTrailingBackslash(oConfigProgram.Diretorio) +s_ArqVenda);
-  Result:=s_ArqVenda;
+  Result := s_ArqVenda;
 end;
 
 
@@ -405,11 +406,12 @@ end;
 
 procedure TFrmPrincipal.Timer1Timer(Sender: TObject);
 begin
+  if enviando_arquivo then Exit;
+
   if (dm.CONECTADO) then
   envia_arquivo_Closeup
   else
   exit;
-
 end;
 
 procedure TFrmPrincipal.BgerarClick(Sender: TObject);
@@ -442,15 +444,18 @@ begin
 end;
 
 function anviaFTP:Boolean;
+var mFile: string;
 begin
 
   try
     dm.p_gravaLog('Enviando arquivo ao FTP', -1);
 
+    mFile := IncludeTrailingBackslash(oConfigProgram.Diretorio) + Arquivo_gerado;
+
     if oConfigProgram.is_REDE_PARCEIRA then
-    IdFTPDigi.Put(IncludeTrailingBackslash(oConfigProgram.Diretorio) + Arquivo_gerado, Arquivo_gerado)
+    IdFTPDigi.Put(mFile,  Arquivo_gerado)
     else
-    IdFTP.Put(IncludeTrailingBackslash(oConfigProgram.Diretorio) + Arquivo_gerado, Arquivo_gerado);
+    IdFTP.Put(mFile, Arquivo_gerado);
 
     dm.p_gravaLog('Arquivo enviado FTP', -1);
     IdFTPDigi.Disconnect;
@@ -476,6 +481,13 @@ begin
     on ex:Exception do
     begin
       dm.p_gravaLog('Erro: ' + ex.Message + ' Aguardando 1 minuto',-1);
+
+      if not DirectoryExists(ExtractFileDir(Application.ExeName) + '\temp\' ) then
+      ForceDirectories(ExtractFileDir(Application.ExeName) + '\temp\');
+
+      CopyFile(PChar(mFile), PChar(ExtractFileDir(Application.ExeName) + '\temp\' + Arquivo_gerado), false);
+
+
       Sleep(60000);
       anviaFTP;
     end;
@@ -490,7 +502,7 @@ begin
   AssignFile(BatFile, FileName);
   Rewrite(BatFile);
   try
-    Writeln(BatFile, 'open ftp.close-upinternational.com.br');
+    Writeln(BatFile, 'open ' + ServerName);
     Writeln(BatFile, UserName);
     Writeln(BatFile, Password);
     Writeln(BatFile, 'binary');
@@ -538,24 +550,26 @@ begin
     {$REGION 'Gera arquivo de acordo com o layout flat file de prescrição'}
     if (rArq_P.Checked) then
     begin
-       dm.p_gravaLog('Gerando arquivo de Prescrição',-1);
-       DataI := FormatDateTime('yyyy-mm-dd', jvDateInc.Date) + ' 00:00:00';
-       DataF := FormatDateTime('yyyy-mm-dd', jvDateInc.Date) + ' 23:59:59';
-       if (str_SoNumero(JvInicio.Text)='') then
-       begin
-         if (rb_Man.Checked) then
-         MessageBox(0, 'Favor informar o periodo', '', MB_OK + MB_ICONERROR);
+      dm.p_gravaLog('Gerando arquivo de Prescrição', -1);
+      DataI := FormatDateTime('yyyy-mm-dd', jvDateInc.Date) + ' 00:00:00';
+      DataF := FormatDateTime('yyyy-mm-dd', jvDateInc.Date) + ' 23:59:59';
 
-         exit;
-       end;
-
-       if (JvFim.Date>now) or (StrToInt(FormatDateTime('yyyy',JvInicio.Date))< 2015) then
-       begin
+      if (str_SoNumero(JvInicio.Text) = '') then
+      begin
         if (rb_Man.Checked) then
-        MessageBox(0, 'Período inválido', '', MB_OK + MB_ICONERROR);
+          MessageBox(0, 'Favor informar o periodo', '', MB_OK + MB_ICONERROR);
 
         exit;
-       end;
+      end;
+
+      if (JvFim.Date > now) or (StrToInt(FormatDateTime('yyyy', JvInicio.Date))
+        < 2015) then
+      begin
+        if (rb_Man.Checked) then
+          MessageBox(0, 'Período inválido', '', MB_OK + MB_ICONERROR);
+
+        exit;
+      end;
 
       p_status('Aguarde, gerando arquivo...');
       Arquivo_gerado := GeraArquivoPrescricao;
@@ -578,33 +592,21 @@ begin
 
         {***** Manda o Arquivo ao FTP *****}
         try
-         if (dm.CONECTADO) then
-         begin
+          if (dm.CONECTADO) then
+          begin
             dm.p_gravaLog('Acessando FTP', -1);
-            IdFTPDigi.Disconnect;
-            IdFTPDigi.Host     := oConfigProgram.g_s_FTP_HOST;
-            IdFTPDigi.Username := oConfigProgram.g_s_FTP_USER;
-            IdFTPDigi.Password := oConfigProgram.g_s_FTP_PWD;
-
-            IdFTPDigi.Passive := true;
-            IdFTPDigi.UseTLS  := utUseExplicitTLS;
-
-//            conectaFTP;
-//            anviaFTP;
-
-
             GerarScriptFTP('script_ftp.bat', 'ftp.close-upinternational.com.br', oConfigProgram.g_s_FTP_USER, oConfigProgram.g_s_FTP_PWD, Arquivo_gerado, 'ftptempscript');
             ShellExecute(0, nil, 'cmd.exe', PChar('/c ' + 'ftp -s:"script_ftp.bat"'), nil, SW_HIDE);
 
 
             DeleteFile(oConfigProgram.Diretorio+Arquivo_gerado);
-         end
-         else
-         begin
-           dm.p_gravaLog('Sem Internet aguardando 10 minutos', -1);
-           Sleep(600000);
-           envia_arquivo_Closeup;
-         end;
+          end
+          else
+          begin
+             dm.p_gravaLog('Sem Internet aguardando 10 minutos', -1);
+             Sleep(600000);
+             envia_arquivo_Closeup;
+          end;
           except
           on ex:exception do
           begin
@@ -623,28 +625,29 @@ begin
     {$REGION 'Gera o Arquivo de acordo com o manual de Demanda'}
     if (rArq_D.Checked) then
     begin
-        dm.p_gravaLog('Gerando arquivo de Demanda',-1);
-     DataI := FormatDateTime('yyyy-mm-dd', JvInicio.Date) + ' 00:00:00';
-     DataF := FormatDateTime('yyyy-mm-dd', JvFim.Date) + ' 23:59:59';
-     if (str_SoNumero(JvInicio.Text) = '') then
-     begin
-       if (rb_Man.Checked) then
-       MessageBox(0, 'Favor informar o periodo', '', MB_OK + MB_ICONERROR);
-       exit;
-     end;
+      dm.p_gravaLog('Gerando arquivo de Demanda',-1);
+      DataI := FormatDateTime('yyyy-mm-dd', JvInicio.Date) + ' 00:00:00';
+      DataF := FormatDateTime('yyyy-mm-dd', JvFim.Date) + ' 23:59:59';
 
-     if (JvFim.Date>now) or (StrToInt(FormatDateTime('yyyy',JvInicio.Date))< 2012) then
-     begin
-       if (rb_Man.Checked) then
-       MessageBox(0, 'Período inválido', '', MB_OK + MB_ICONERROR);
-       exit;
-     end;
+      if (str_SoNumero(JvInicio.Text) = '') then
+      begin
+        if (rb_Man.Checked) then
+        MessageBox(0, 'Favor informar o periodo', '', MB_OK + MB_ICONERROR);
+        Exit;
+      end;
 
+      if (JvFim.Date>now) or (StrToInt(FormatDateTime('yyyy',JvInicio.Date))< 2012) then
+      begin
+        if (rb_Man.Checked) then
+        MessageBox(0, 'Período inválido', '', MB_OK + MB_ICONERROR);
+        Exit;
+      end;
 
       p_status('Aguarde, gerando arquivo...');
       Arquivo_gerado := gerarArquivoDemanda;
       dm.p_gravaLog('Arquivo Gerado ' + arquivo_gerado, -1);
-      if arquivo_gerado = '' then
+
+      if (arquivo_gerado = '') then
       begin
         dm.p_gravaLog('Sem arquivos pra enviar', -1);
         if (rb_Man.Checked) then
@@ -660,72 +663,71 @@ begin
 
        {***** Manda o Arquivo ao FTP *****}
         try
-         if (dm.CONECTADO) then
-         begin
+          if (dm.CONECTADO) then
+          begin
             dm.p_gravaLog('Acessando FTP', -1);
 
-//            if cbxFarmacia.Checked then
-//            begin
-//              IdFTPDigi.Host := oConfigProgram.g_s_FTP_HOST;
-//              IdFTPDigi.Username := oConfigProgram.g_s_FTP_USER;
-//              IdFTPDigi.Password := oConfigProgram.g_s_FTP_PWD;
-//            end
-//            else
-//            begin
             IdFTPDigi.Disconnect;
-            IdFTPDigi.Host := oConfigProgram.FTP_HOST_REDE;
-            IdFTPDigi.Username := oConfigProgram.FTP_USER_REDE;
+            IdFTPDigi.Host     := oConfigProgram.FTP_HOST_REDE;
+            IdFTPDigi.UserName := oConfigProgram.FTP_USER_REDE;
             IdFTPDigi.Password := oConfigProgram.FTP_PWD_REDE;
-//            end;
 
             IdFTPDigi.Passive := true;
             IdFTPDigi.UseTLS := utUseExplicitTLS;
             conectaFTP;
 
-            b_ftp_pasta_ano:=false;
+            b_ftp_pasta_ano := false;
 
             try
-              IdFTPDigi.ChangeDir('/closeup/rede/'+oConfigProgram.PARCEIRO);
+              IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
             except
-              on ex:exception do
+              on ex: Exception do
               begin
-                 IdFTPDigi.MakeDir('/closeup/rede/'+oConfigProgram.PARCEIRO);
-                 IdFTPDigi.ChangeDir('/closeup/rede/'+oConfigProgram.PARCEIRO);
+                IdFTPDigi.MakeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
+                IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
               end;
             end;
 
-
             dm.p_gravaLog('Criando pasta inexistente no servidor', -1);
             try
-              IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO+ '/' + FormatDateTime('yyyy', jvDateInc.Date));
+              IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO +
+                '/' + FormatDateTime('yyyy', jvDateInc.Date));
             except
               on ex: Exception do
               begin
                 IdFTPDigi.MakeDir(FormatDateTime('yyyy', jvDateInc.Date));
-                IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO+ '/' + FormatDateTime('yyyy', jvDateInc.Date));
+                IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO +
+                  '/' + FormatDateTime('yyyy', jvDateInc.Date));
               end;
             end;
 
+
+//            GerarScriptFTP('script_ftp.bat',
+//            'digifarmaonline.com.br',
+//            oConfigProgram.FTP_USER_REDE,
+//            oConfigProgram.FTP_PWD_REDE,
+//            Arquivo_gerado, 'ftptempscript');
+//            ShellExecute(0, nil, 'cmd.exe', PChar('/c ' + 'ftp -s:"script_ftp.bat"'), nil, SW_HIDE);
+
             anviaFTP;
 
-            DeleteFile(oConfigProgram.Diretorio+Arquivo_gerado);
-         end
-         else
-         begin
-           dm.p_gravaLog('Sem Internet aguardando 10 minutos', -1);
-           Sleep(600000);
-           envia_arquivo_Closeup;
-         end;
-          except
-          on ex:exception do
+            DeleteFile(oConfigProgram.Diretorio + Arquivo_gerado);
+          end
+          else
           begin
-            dm.p_gravaLog('Erro ao inserir no FTP '+ex.Message, -1);
+            dm.p_gravaLog('Sem Internet aguardando 10 minutos', -1);
             Sleep(600000);
             envia_arquivo_Closeup;
           end;
-
+        except
+          on ex: Exception do
+          begin
+            dm.p_gravaLog('Erro ao inserir no FTP ' + ex.Message, -1);
+            Sleep(600000);
+            envia_arquivo_Closeup;
+          end;
         end;
-       {---------------------------------------------------------}
+        { ---------------------------------------------------------}
 
        {Escreve a ultima data no INI}
         try
@@ -751,82 +753,80 @@ begin
     if not rArq_P.Checked and not rArq_D.Checked then
     Exit;
 
-    {$REGION 'Nem Demanda, nem Prescrição - Encerra rotina'}
-
-    {$ENDREGION}
-
   end;{Final do Período da Data escolhida nos JVdates}
-  enviando_arquivo := false;
+  enviando_arquivo := False;
   {$ENDREGION}
 
-  {$REGION 'SETA O RETROATIVO PRA N NO BANCO ONLINE E ATUALIZA O STATUS DO ARQUIVO'}
+  {$REGION 'SETA O RETROATIVO PRA N NA NUVEM E ATUALIZA O STATUS DO ARQUIVO'}
 
- if (dm.CONECTADO) then
- begin
-   try
-    if (oConfigProgram.is_REDE_PARCEIRA) then
-    begin
-       try
-         {Muda o Retroativo para N no banco online}
-         dm.p_gravaLog('Atualizando Informações no Servidor', -1);
-         if (oConfigProgram.s_RETROATIVO='S') then
-         begin
-           oBancoAux:=TDataXml.Create;
-           oBancoAux.ServidorWS('www.digifarma.com.br');
-           oBancoAux.SQL:='update ifarma.closeup_lojas set retroativo=''N'',data_inicio=null,data_fim=null where cnpj='+QuotedStr(oConfigProgram.s_CNPJ);
+  if (dm.CONECTADO) then
+  begin
+    try
+      if (oConfigProgram.is_REDE_PARCEIRA) then
+      begin
+        try
+          { Muda o Retroativo para N no banco online }
+          dm.p_gravaLog('Atualizando Informações no Servidor', -1);
+          if (oConfigProgram.s_RETROATIVO = 'S') then
+          begin
+            oBancoAux := TDataXml.create;
+            oBancoAux.ServidorWS('www.digifarma.com.br');
+            oBancoAux.SQL :=
+              'update ifarma.closeup_lojas set retroativo=''N'',data_inicio=null,data_fim=null where cnpj='
+              + QuotedStr(oConfigProgram.s_CNPJ);
 
-           try
-             oBancoAux.Execute;
-              except
-              on ex:exception do
+            try
+              oBancoAux.Execute;
+            except
+              on ex: Exception do
               begin
-                dm.p_gravaLog('Erro ao acessar Servidor'+ex.Message, -1);
+                dm.p_gravaLog('Erro ao acessar Servidor' + ex.Message, -1);
                 Sleep(300000);
                 envia_arquivo_Closeup;
               end;
-           end;
-           FreeAndNil(oBancoAux);
-         end;
+            end;
+            freeandnil(oBancoAux);
+          end;
 
+          oBancoAux := TDataXml.create;
+          oBancoAux.ServidorWS('www.digifarma.com.br');
+          oBancoAux.SQL :=
+            'INSERT INTO ifarma.closeup_arquivos (data_envio,enviado,dia_referente,cnpj,versao) VALUES('
+            + QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss', now)) + ', ' +
+            QuotedStr('S') + ', ' +
+            QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss', jvDateInc.Date)) +
+            ', ' + QuotedStr(oConfigProgram.s_CNPJ) + ', ' +
+            QuotedStr(str_GetFileVer('c:\digifarma\closeup\closeup.exe')) + ' )'
 
+            + 'on duplicate key update data_envio=sysdate(), enviado=''S'', dia_referente='
+            + QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss', jvDateInc.Date)) +
+            ',' + 'versao=' +
+            QuotedStr(str_GetFileVer('c:\digifarma\closeup\closeup.exe'));
 
-         oBancoAux:=TDataXml.Create;
-         oBancoAux.ServidorWS('www.digifarma.com.br');
-         oBancoAux.SQL:='INSERT INTO ifarma.closeup_arquivos (data_envio,enviado,dia_referente,cnpj,versao) VALUES('+
-                         QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss',now))+', '+
-                         QuotedStr('S')+', '+
-                         QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss',jvDateInc.Date))+', '+
-                         QuotedStr(oConfigProgram.s_CNPJ) + ', '+
-                         QuotedStr(str_GetFileVer('c:\digifarma\closeup\closeup.exe')) +' )'
-
-                         +'on duplicate key update data_envio=sysdate(), enviado=''S'', dia_referente='+
-                         QuotedStr(FormatDateTime('yyyy-mm-dd hh:mm:ss',jvDateInc.Date))+','
-                         +'versao='+QuotedStr(str_GetFileVer('c:\digifarma\closeup\closeup.exe')) ;
-
-         oBancoAux.Execute;
-         FreeAndNil(oBancoAux);
+          oBancoAux.Execute;
+          freeandnil(oBancoAux);
         except
-          on ex:exception do
-          MessageDlg('erro ao inserir online '+ex.Message,mtError,[mbok],0);
-       end;
-    end;
-   except
-    on ex:exception do
-    begin
-      dm.p_gravaLog('Erro ao acessar Servidor'+ex.Message, -1);
-      Sleep(600000);
-      envia_arquivo_Closeup;
-    end;
+          on ex: Exception do
+            MessageDlg('erro ao inserir online ' + ex.Message, mtError,
+              [mbOK], 0);
+        end;
+      end;
+    except
+      on ex: Exception do
+      begin
+        dm.p_gravaLog('Erro ao acessar Servidor' + ex.Message, -1);
+        Sleep(600000);
+        envia_arquivo_Closeup;
+      end;
 
-   end;
- end;
+    end;
+  end;
   {$ENDREGION}
-
   enviando_arquivo := false;
 
-  if (rb_Man.Checked = False) then
+  if (rb_Man.Checked = false) then
   begin
-    Exit;
+    exit;
   end;
 end;
 
@@ -918,12 +918,148 @@ begin
 end;
 
 
+procedure TFrmPrincipal.envia_arquivos_closeup_temp;
+var
+  i: Integer;
+  sr: TSearchRec;
+  arquivo: String;
+  ftpConectado: Boolean;
+
+function EnviaArquivoFTP(arquivo: string): Boolean;
+var
+  mFile: string;
+begin
+  Result := False;
+  try
+    dm.p_gravaLog('Enviando arquivo pasta temp ao FTP: ' + arquivo, -1);
+
+    mFile := IncludeTrailingBackslash(oConfigProgram.Diretorio) + 'Temp\' + arquivo;
+
+    if oConfigProgram.is_REDE_PARCEIRA then
+      IdFTPDigi.Put(mFile, arquivo)
+    else
+      IdFTP.Put(mFile, arquivo);
+
+    dm.p_gravaLog('Arquivo pasta temp enviado com sucesso ao FTP', -1);
+    IdFTPDigi.Disconnect;
+    dm.p_gravaLog('Desconectado do FTP', -1);
+
+    App_RegisterDigifarma('Closeup');
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      dm.p_gravaLog('Erro ao enviar arquivo: ' + E.Message + '. Tentando novamente em 1 minuto', -1);
+
+      var mDir := 'C:\Digifarma\CloseUp\temp\';
+
+      // Cria diretório temporário, se não existir
+      if not DirectoryExists(mDir) then ForceDirectories(mDir);
+
+      // Copia o arquivo para o diretório temporário
+      CopyFile(PChar(mFile), PChar(mDir + arquivo), False);
+
+      Sleep(60000); // Espera 1 minuto antes de tentar novamente
+      EnviaArquivoFTP(arquivo);
+    end;
+  end;
+end;
+
+function ConectaFTP: Boolean;
+begin
+  Result := False;
+  try
+    dm.p_gravaLog('Conectando ao FTP', -1);
+
+    if IdFTPDigi.Connected then
+      IdFTPDigi.Disconnect;
+
+    IdFTPDigi.Connect;
+    IdFTPDigi.List;
+    dm.p_gravaLog('Conectado ao FTP', -1);
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      dm.p_gravaLog('Erro ao conectar: ' + E.Message + '. Tentando novamente em 1 minuto', -1);
+      Sleep(60000); // Espera 1 minuto antes de tentar novamente
+      ConectaFTP;
+    end;
+  end;
+end;
+
+procedure CriaDiretoriosFTP;
+begin
+  try
+    IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
+  except
+    on E: Exception do
+    begin
+      IdFTPDigi.MakeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
+      IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO);
+    end;
+  end;
+
+  try
+    IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO + '/' + FormatDateTime('yyyy', Now));
+  except
+    on E: Exception do
+    begin
+      IdFTPDigi.MakeDir(FormatDateTime('yyyy', Now));
+      IdFTPDigi.ChangeDir('/closeup/rede/' + oConfigProgram.PARCEIRO + '/' + FormatDateTime('yyyy', Now));
+    end;
+  end;
+end;
+
+begin
+  if FindFirst('C:\Digifarma\CloseUp\Temp\*.*', faAnyFile, sr) = 0 then
+  begin
+    repeat
+      arquivo := sr.Name;
+
+      if (arquivo <> '.') and (arquivo <> '..') then
+      begin
+        if dm.CONECTADO then
+        begin
+          dm.p_gravaLog('Acessando FTP para envio de arquivo da pasta Temp: ' + arquivo, -1);
+
+          // Configura o FTP
+          IdFTPDigi.Host     := oConfigProgram.FTP_HOST_REDE;
+          IdFTPDigi.UserName := oConfigProgram.FTP_USER_REDE;
+          IdFTPDigi.Password := oConfigProgram.FTP_PWD_REDE;
+          IdFTPDigi.Passive  := True;
+          IdFTPDigi.UseTLS   := utUseExplicitTLS;
+
+          // Conecta ao FTP
+          ftpConectado := ConectaFTP;
+          if ftpConectado then
+          begin
+            // Cria diretórios no FTP
+            CriaDiretoriosFTP;
+
+            // Envia o arquivo
+            if EnviaArquivoFTP(arquivo) then
+            begin
+              DeleteFile(oConfigProgram.Diretorio + '\Temp\' + arquivo);
+              dm.p_gravaLog('Arquivo deletado localmente após envio da pasta Temp: ' + arquivo, -1);
+            end;
+          end;
+        end;
+      end;
+
+      i := FindNext(sr);
+    until i <> 0;
+  end;
+  FindClose(sr);
+end;
+
+
 procedure TFrmPrincipal.envia_arquivo_Closeup;
 begin
-   enviando_arquivo:=False;
+   enviando_arquivo := False;
 
    {$REGION 'ENVIO AUTOMÁTICO CLIENTE DE REDE'}
-   if (cbxRede.Checked) and (enviando_arquivo=false) then
+   if (cbxRede.Checked) and (enviando_arquivo = False) then
    begin
      enviando_arquivo := True;
      envia_arquivo_Closeup_Rede;
@@ -933,19 +1069,19 @@ begin
    {$ENDREGION}
 
    {$REGION 'ENVIO AUTOMÁTICO CLIENTE COMUM'}
-   if (cbxFarmacia.Checked) and (enviando_arquivo=false) then
+   if (cbxFarmacia.Checked) and (enviando_arquivo = False) then
    begin
      dm.p_gravaLog('Envio automatico de cliente comum farmácia',-1);
-     enviando_arquivo:=True;
+     enviando_arquivo := True;
      envia_arquivo_Closeup_Farmacia;
-     enviando_arquivo:=False;
+     enviando_arquivo := False;
    end;
    {$ENDREGION}
 
    if (rb_Auto.Checked) then
    begin
-      frmPrincipal.Tray.Visible:=true;
-      Application.ShowMainForm:=false;
+      frmPrincipal.Tray.Visible := True;
+      Application.ShowMainForm := False;
    end;
 
 end;
@@ -1109,6 +1245,8 @@ begin
 
     {Carrega o Objeto de configuração do programa}
     oConfigProgram := TConfigProgram.Create;
+
+    envia_arquivos_closeup_temp;
     envia_arquivo_Closeup;
   end
   else
@@ -1136,7 +1274,7 @@ begin
  if Assigned(oConfigProgram) then
  begin
 
-   if  (enviando_arquivo=false) and (trim(oConfigProgram.s_CNPJ)<>'') then
+   if  (enviando_arquivo = false) and (trim(oConfigProgram.s_CNPJ)<>'') then
    begin
     if (dm.CONECTADO) then
     begin
@@ -1197,7 +1335,7 @@ Var
   Arq_Split:TStringList;
 begin
  s_retroativo:='N';
- Diretorio:=IncludeTrailingBackslash('C:\digifarma')+'CloseUp';
+ Diretorio:=IncludeTrailingBackslash('C:\digifarma') + 'CloseUp';
 
  {$REGION 'PEGA OS DADOS DA FARMÁCIA NO BANCO LOCAL'}
 

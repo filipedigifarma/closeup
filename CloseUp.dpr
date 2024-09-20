@@ -32,13 +32,14 @@ HprevHist: HWND;
 hMutex : integer;
 
 begin
-  Application.Initialize;
-  hMutex := CreateMutex(0, TRUE, 'CloseUp');
-  if GetLastError = ERROR_ALREADY_EXISTS then
-  begin
-    Application.Terminate;
-    Exit;
-  end;
+//  Application.Initialize;
+//  hMutex := CreateMutex(0, TRUE, 'CloseUp');
+//  if GetLastError = ERROR_ALREADY_EXISTS then
+//  begin
+//    Application.Terminate;
+//    Exit;
+//  end;
+
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TDM, DM);

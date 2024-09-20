@@ -1672,6 +1672,7 @@ object FrmPrincipal: TFrmPrincipal
     ProxySettings.ProxyType = fpcmNone
     ProxySettings.Port = 0
     UseTLS = utUseExplicitTLS
+    ReadTimeout = 120000
     Left = 192
     Top = 218
   end
@@ -1686,7 +1687,7 @@ object FrmPrincipal: TFrmPrincipal
     MaxLineAction = maException
     Port = 21
     DefaultPort = 0
-    ReadTimeout = 60000
+    ReadTimeout = 120000
     SSLOptions.Method = sslvSSLv23
     SSLOptions.SSLVersions = [sslvSSLv2, sslvSSLv3, sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2]
     SSLOptions.Mode = sslmUnassigned
@@ -1700,7 +1701,7 @@ object FrmPrincipal: TFrmPrincipal
     IOHandler = Socket
     Host = 'www.digifarmaonline.com.br'
     Passive = True
-    ConnectTimeout = 0
+    ConnectTimeout = 60000
     Password = 'Dig1Clos3up'
     TransferTimeout = 240000
     Username = 'closeup'
@@ -1710,6 +1711,7 @@ object FrmPrincipal: TFrmPrincipal
     ProxySettings.ProxyType = fpcmNone
     ProxySettings.Port = 0
     UseTLS = utUseExplicitTLS
+    ReadTimeout = 120000
     Left = 192
     Top = 274
   end
