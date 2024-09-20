@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>CloseUp.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -105,16 +105,17 @@
         <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <VerInfo_Release>4</VerInfo_Release>
+        <VerInfo_Release>5</VerInfo_Release>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
-        <VerInfo_Keys>CompanyName=Digifarma - Sistema integrado para Farmácias;FileDescription=Closeup.exe;FileVersion=1.0.4.3;InternalName=Closeup;LegalCopyright=AGNALDO BOTELHO CARDOSO;LegalTrademarks=;OriginalFilename=Closeup.exe;ProductName=Closeup.exe;ProductVersion=1.0.4;Comments=Aplicativo de integração entre o Digifarma e a Close-Up International;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=Digifarma - Sistema integrado para Farmácias;FileDescription=Closeup.exe;FileVersion=1.0.5.8;InternalName=Closeup;LegalCopyright=AGNALDO BOTELHO CARDOSO;LegalTrademarks=;OriginalFilename=Closeup.exe;ProductName=Closeup.exe;ProductVersion=1.0.5;Comments=Aplicativo de integração entre o Digifarma e a Close-Up International;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
         <BT_BuildType>Debug</BT_BuildType>
         <AppExecutionLevel>requireAdministrator</AppExecutionLevel>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <VerInfo_AutoIncVersion>true</VerInfo_AutoIncVersion>
+        <VerInfo_Build>8</VerInfo_Build>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

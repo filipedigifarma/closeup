@@ -24,20 +24,7 @@ Tabela:Tibquery;
 Count,total_unidades,total_unidades_dev,i,x:Integer;
 sl_codbarras:TstringList;
 begin
-
-  codbarra:='';
-  {Escreve no Txt | CLIENTES – Cabeçalho ou Header}
-//  Writeln(txt,
-//          '4', {Tipo de registro	01	Caracter	Fixo “4” (Default = Padrão)}
-//          '0', {Fixo	01	Caracter	Fixo “0” (zero) (Default = Padrão)}
-//          oConfigProgram.s_COD_REDE, {Seu código CLOSE UP	04	Caracter	Seu código na CLOSE UP (código fornecido pela CLOSE UP)}
-//          FormatDateTime('ddmmyyyy', FrmPrincipal.JvInicio.Date),{Data início	08	Caracter	Data inicial desta informação “ddmmaaaa” (dia da venda)}
-//          FormatDateTime('ddmmyyyy', FrmPrincipal.JvFim.Date),{Data final	08	Caracter	Data final desta informação “ddmmaaaa” (informar a data do último dia informado no arquivo)}
-//          FormatDateTime('ddmmyyyy', Now),{Data arquivo	08	Caracter	Data da geração do arquivo “ddmmaaaa” (informar a data do dia da geração do arquivo)}
-//          'D',{070	FLAG periodicidade	01	caracter	D – Diário (Default = Padrão) }
-//          str_preenche_espaco('',3),{Filler	3 Caracter	Espaços (Default = Padrão)}
-//          'CUPbrven4'{110	Controle interno CLOSE UP	09	Caracter	Fixo “CUPbrven4” (Default = Padrão)});
-
+  codbarra := '';
 
   {Escreve no Txt |  2/3 VENDAS – Descrição ou Detalhamento}
   dm.bd_ibQuery_init(Tabela);
@@ -49,7 +36,6 @@ begin
   + ' and   p.produto_id=i.produto_id '
   + ' and   char_length(p.cod_barras) <=13  and  cast(c.venda_data_hora as date)='
   + QuotedStr(FormatDateTime('yyyy-mm-dd',FrmPrincipal.jvDateInc.date)));
-//                 +' and   char_length(p.cod_barras) <=13  and  c.venda_data_hora  between '+QuotedStr(DataI) + ' and '+QuotedStr(DataF) );
   Tabela.Open;
 
   if tabela.Eof then
